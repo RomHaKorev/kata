@@ -19,11 +19,11 @@ class CellState(Enum):
 	Alive = 1
 
 class Cell(QGraphicsItem):
-	def __init__(self, position):
+	def __init__(self, x, y):
 		super().__init__()
 		self.image = QPixmap(pickImage()).scaled(Cell.cellSize().toSize(), transformMode =Qt.SmoothTransformation)
-		self.setX(position.x() * Cell.cellSize().width())
-		self.setY(position.y() * Cell.cellSize().height())
+		self.setX(x * Cell.cellSize().width())
+		self.setY(y * Cell.cellSize().height())
 		self.state = random.choice([CellState.Dead, CellState.Alive])
 		
 	def boundingRect(self):
@@ -31,27 +31,49 @@ class Cell(QGraphicsItem):
 
 	def paint(self, painter, option, widget):
 		if self.state == CellState.Alive:
-			painter.drawPixmap(0, 0, self.image);
+			painter.drawPixmap(0, 0, self.image)
 
 	@classmethod
 	def cellSize(cls):
 		return QSizeF(20, 20)
 
-class GameModel(QGraphicsScene):
-	def __init__(self, rowCount, columnCount, parent=None):
-		w = rowCount * Cell.cellSize().width()
-		h = columnCount * Cell.cellSize().height()
-		super().__init__(0, 0, w, h, parent)
+
+class Grid(object):
+	def __init__(self, rowCount, columnCount):
+		self.rowCount = rowCount
+		self.columnCount = columnCount
 
 		self.cells = list()
 		for row in range(rowCount):
+			l = list()
 			for column in range(columnCount):
-				c = Cell(QPointF(row, column))
-				self.addItem(c)
-				self.cells.append(c)
+				c = Cell(row, column)
+				l.append(c)
+			self.cells.append(l)
+
+	def __iter__(self):
+		for row in self.cells:
+			for cell in row:
+				yield cell
+
+	def update(self):
+		print("Update cells")
 
 
+class GameModel(QGraphicsScene):
+	def __init__(self, grid, parent=None):
+		w = grid.rowCount * Cell.cellSize().width()
+		h = grid.columnCount * Cell.cellSize().height()
+		super().__init__(0, 0, w, h, parent)
 
+		self.startTimer(1000)
+
+		self.grid = grid
+		for cell in self.grid:
+			self.addItem(cell)
+
+	def timerEvent(self, event):
+		self.grid.update()
 
 class GameView(QGraphicsView):
 	def __init__(self, parent=None):
@@ -59,7 +81,10 @@ class GameView(QGraphicsView):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    model = GameModel(10, 10)
+
+    grid = Grid(10, 10)
+
+    model = GameModel(grid)
     view = QGraphicsView()
     view.setScene(model)
     view.show()
